@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>Statistics course in NTU</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+
+    <!-- 禁止選取文字 -->
+    <style>
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+
+    <!-- 禁止右鍵與複製 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 禁止右鍵
+            document.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+            });
+            // 禁止複製
+            document.addEventListener('copy', function (e) {
+                e.preventDefault();
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Statistics courses in NTU</h1>
+    <p>台大雖然大學部沒有統計系，但是有許多統計/計量課程可以學習！</p>
+    <p>以下我將根據課程難度列出一些課程：</p>
+    <p>(i) Basic</p>
+    <ol>
+        <li>心理學系 - 心理統計學上＋下 (一年課程) 無先修課程</li>
+        <li>心理學系 - 心理測驗 (上學期課程) 先修：心理統計學上＋下</li>
+        <li>經濟學系 - 統計學暨實習 (上學期課程) 建議先修：微積分</li> 
+        <li>經濟學系 - 計量經濟學導論暨實習 (下學期課程) 先修：統計學暨實習</li>
+    </ol>
+    <p>(ii) Intermediate</p>
+    <ol>
+        <li>經濟學系 - 計量經濟學一＋二 (一年課程) 先修：計量經濟學導論暨實習</li>
+        <li>商研所 - 多變量分析 (下學期課程) 建議先修：初等統計學、線性代數</li>
+    </ol>
+    <p>(iii) Advanced</p>
+    <ol>
+        <li>統研所 - 統計理論一＋二 (一年課程) 先修：初等統計學</li>
+        <li>數學系 - 數理統計 (下學期課程) 先修：初等統計學</li>
+    </ol>
+    <a href="index.html">← Back to Home Page</a>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>About Me</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+
+    <!-- 禁止選取文字 -->
+    <style>
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+
+    <!-- 禁止右鍵與複製 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 禁止右鍵
+            document.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+            });
+            // 禁止複製
+            document.addEventListener('copy', function (e) {
+                e.preventDefault();
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>About Me</h1>
+    <p>Hello! My name is Jason, currently a bachelor student in National Taiwan University.</p>
+    <p>This website is for learning, so it may look very easy!!</p>
+    <p>Thanks to the help of ChatGPT, it teaches me how to construct a website and some minor settings!!</p>
+
+    <h2><strong>My Skills</strong></h2>
+    <ul style="list-style-type:none; margin-left:-37.5px;">
+        <li style="margin-bottom: 5px;">
+            <strong>Language</strong>: Mandarin (native), English (fluent), Taiwanese (intermediate), Japanese (basic)
+        </li>
+        <li style="margin-bottom: 5px;">
+            <strong>Programming</strong>: R, Python
+        </li>
+        <li style="margin-bottom: 5px;">
+            <strong>Statistical Software</strong>: JASP, SAS, SPSS, Stata
+        </li>
+        <li>
+            <strong>Others</strong>: LaTeX, Microsoft Office
+        </li>
+    </ul>
+
+    <a href="index.html">← Back to Home Page</a>
+</body>
+
+</html>

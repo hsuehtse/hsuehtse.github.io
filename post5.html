@@ -1,0 +1,168 @@
+<!-- (建議) 放在 <head> 內 -->
+<meta charset="utf-8" />
+
+<section id="gpower-z-generic" style="max-width:820px;margin:24px auto;padding:20px;border:1px solid #ddd;border-radius:14px;font-family:system-ui,Segoe UI,Calibri,Arial;">
+  <h2 style="margin-top:0;">Generic z test (G*Power-aligned)</h2>
+  <p style="color:#444;line-height:1.6;">
+    Post hoc power given &alpha; and noncentrality parameter:
+    <br>
+    Left inputs &rarr; right outputs, matching G*Power “Generic z test”.
+  </p>
+
+  <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:18px;align-items:start;">
+    
+    <!-- LEFT: Inputs -->
+    <div style="padding:12px;border:1px solid #eee;border-radius:12px;">
+      <h3 style="margin:0 0 8px 0;">Input Parameters</h3>
+
+      <label style="display:block;margin:10px 0;">
+        Tail(s)
+        <select id="tails" style="width:100%;padding:8px;margin-top:6px;">
+          <option value="one">One</option>
+          <option value="two">Two</option>
+        </select>
+      </label>
+
+      <label style="display:block;margin:10px 0;">
+        Noncentrality parameter &mu;
+        <input id="delta" type="number" step="0.0001" placeholder="e.g., -2.98"
+               style="width:100%;padding:8px;margin-top:6px;">
+      </label>
+
+      <label style="display:block;margin:10px 0;">
+        Noncentral dist. SD &sigma;
+        <input id="sigma" type="number" step="0.0001" placeholder="e.g., 1"
+               style="width:100%;padding:8px;margin-top:6px;">
+      </label>
+
+      <label style="display:block;margin:10px 0;">
+        &alpha; err prob
+        <input id="alpha" type="number" step="0.001" placeholder="e.g., 0.05"
+               style="width:100%;padding:8px;margin-top:6px;">
+      </label>
+
+      <button onclick="computeGenericZ()" 
+              style="margin-top:8px;padding:10px 14px;border:0;border-radius:10px;background:#004A99;color:#fff;cursor:pointer;width:100%;">
+        Compute
+      </button>
+
+      <p id="tailNote" style="margin-top:10px;color:#666;font-size:0.95rem;"></p>
+    </div>
+
+    <!-- RIGHT: Outputs -->
+    <div style="padding:12px;border:1px solid #eee;border-radius:12px;background:#f6f8fb;">
+      <h3 style="margin:0 0 8px 0;">Output Parameters</h3>
+
+      <div style="display:grid;grid-template-columns:1fr auto;row-gap:8px;column-gap:10px;">
+        <div>Critical z</div><div id="critz" style="font-weight:700;">—</div>
+        <div>&beta; err prob</div><div id="beta" style="font-weight:700;">—</div>
+        <div>Power (1−&beta; err prob)</div><div id="power" style="font-weight:700;">—</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+/*** Standard normal inverse CDF (Acklam) ***/
+function normInv(p){
+  if(p<=0 || p>=1) return NaN;
+  const a1=-3.969683028665376e+01, a2= 2.209460984245205e+02,
+        a3=-2.759285104469687e+02, a4= 1.383577518672690e+02,
+        a5=-3.066479806614716e+01, a6= 2.506628277459239e+00;
+  const b1=-5.447609879822406e+01, b2= 1.615858368580409e+02,
+        b3=-1.556989798598866e+02, b4= 6.680131188771972e+01,
+        b5=-1.328068155288572e+01;
+  const c1=-7.784894002430293e-03, c2=-3.223964580411365e-01,
+        c3=-2.400758277161838e+00, c4=-2.549732539343734e+00,
+        c5= 4.374664141464968e+00, c6= 2.938163982698783e+00;
+  const d1= 7.784695709041462e-03, d2= 3.224671290700398e-01,
+        d3= 2.445134137142996e+00, d4= 3.754408661907416e+00;
+  const plow=0.02425, phigh=1-plow;
+  let q,r;
+  if(p<plow){
+    q=Math.sqrt(-2*Math.log(p));
+    return (((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6) /
+           ((((d1*q+d2)*q+d3)*q+d4)*q+1);
+  }
+  if(p>phigh){
+    q=Math.sqrt(-2*Math.log(1-p));
+    return -(((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6) /
+             ((((d1*q+d2)*q+d3)*q+d4)*q+1);
+  }
+  q=p-0.5; r=q*q;
+  return (((((a1*r+a2)*r+a3)*r+a4)*r+a5)*r+a6)*q /
+         (((((b1*r+b2)*r+b3)*r+b4)*r+b5)*r+1);
+}
+
+// High-accuracy erf (Numerical Recipes)
+function erf(x){
+  const sign = x >= 0 ? 1 : -1;
+  x = Math.abs(x);
+
+  const t = 1 / (1 + 0.5 * x);
+  const tau = t * Math.exp(
+    -x*x - 1.26551223 +
+    1.00002368*t +
+    0.37409196*t**2 +
+    0.09678418*t**3 -
+    0.18628806*t**4 +
+    0.27886807*t**5 -
+    1.13520398*t**6 +
+    1.48851587*t**7 -
+    0.82215223*t**8 +
+    0.17087277*t**9
+  );
+
+  return sign * (1 - tau);
+}
+
+function normCdf(x){
+  return 0.5 * (1 + erf(x / Math.SQRT2));
+}
+
+function computeGenericZ(){
+  const tails = document.getElementById("tails").value;
+  const delta = parseFloat(document.getElementById("delta").value);
+  const sigma = parseFloat(document.getElementById("sigma").value);
+  const alpha = parseFloat(document.getElementById("alpha").value);
+
+  const critzEl = document.getElementById("critz");
+  const betaEl  = document.getElementById("beta");
+  const powEl   = document.getElementById("power");
+  const noteEl  = document.getElementById("tailNote");
+
+  if(!(sigma>0) || !(alpha>0 && alpha<1) || isNaN(delta)){
+    critzEl.textContent = betaEl.textContent = powEl.textContent = "—";
+    noteEl.textContent = "Please enter valid \u03B4, \u03C3>0, and 0<\u03B1<1.";
+    return;
+  }
+
+  let zcrit, beta, power, direction;
+
+  if(tails === "two"){
+    const z = normInv(1 - alpha/2);
+    beta = normCdf(( z - delta)/sigma) - normCdf((-z - delta)/sigma);
+    power = 1 - beta;
+    direction = "two-sided (± critical z)";
+    critzEl.textContent = `± ${z.toFixed(6)}`;
+  } else {
+    if(delta < 0){
+      direction = "one-sided lower tail (δ<0)";
+      zcrit = normInv(alpha);
+      beta = 1 - normCdf((zcrit - delta)/sigma);
+    } else {
+      direction = "one-sided upper tail (δ≥0)";
+      zcrit = normInv(1 - alpha);
+      beta = normCdf((zcrit - delta)/sigma);
+    }
+    power = 1 - beta;
+    critzEl.textContent = zcrit.toFixed(7);
+  }
+
+  betaEl.textContent = beta.toFixed(7);
+  powEl.textContent  = power.toFixed(7);
+  noteEl.textContent = `Direction: ${direction}`;
+}
+</script>
+

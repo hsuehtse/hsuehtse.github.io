@@ -1,0 +1,300 @@
+<meta charset="utf-8" />
+
+<section id="gpower-twosamplet-apriori" style="max-width:900px;margin:24px auto;padding:20px;border:1px solid #ddd;border-radius:14px;font-family:system-ui,Segoe UI,Calibri,Arial;">
+  <h2 style="margin-top:0;">Two-sample t test (A priori, G*Power-aligned)</h2>
+  <p style="color:#444;line-height:1.6;">
+    t tests &rarr; Means: Difference between two independent means (two groups).<br>
+    A priori: compute required sample size given &alpha;, target power, effect size <i>d</i>, and allocation ratio N2/N1.
+  </p>
+
+  <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:18px;align-items:start;">
+
+    <!-- LEFT: Inputs -->
+    <div style="padding:12px;border:1px solid #eee;border-radius:12px;">
+      <h3 style="margin:0 0 8px 0;">Input Parameters</h3>
+
+      <label style="display:block;margin:10px 0;">
+        Tail(s)
+        <select id="tails" style="width:100%;padding:8px;margin-top:6px;">
+          <option value="one">One</option>
+          <option value="two">Two</option>
+        </select>
+      </label>
+
+      <label style="display:block;margin:10px 0;">
+        Effect size <i>d</i> (Cohen's d)
+        <input id="d" type="number" step="0.0001" placeholder="e.g., 0.5"
+               style="width:100%;padding:8px;margin-top:6px;">
+      </label>
+
+      <label style="display:block;margin:10px 0;">
+        &alpha; err prob
+        <input id="alpha" type="number" step="0.001" placeholder="e.g., 0.05"
+               style="width:100%;padding:8px;margin-top:6px;">
+      </label>
+
+      <label style="display:block;margin:10px 0;">
+        Target power (1−&beta; err prob)
+        <input id="powTarget" type="number" step="0.0001" placeholder="e.g., 0.8"
+               style="width:100%;padding:8px;margin-top:6px;">
+      </label>
+
+      <label style="display:block;margin:10px 0;">
+        Allocation ratio N2/N1
+        <input id="ratio" type="number" step="0.0001" placeholder="e.g., 1 (equal groups)"
+               style="width:100%;padding:8px;margin-top:6px;">
+      </label>
+
+      <button onclick="solveTwoSampleTApriori()"
+              style="margin-top:8px;padding:10px 14px;border:0;border-radius:10px;background:#004A99;color:#fff;cursor:pointer;width:100%;">
+        Compute
+      </button>
+
+      <p id="dirNote" style="margin-top:10px;color:#666;font-size:0.95rem;"></p>
+    </div>
+
+    <!-- RIGHT: Outputs -->
+    <div style="padding:12px;border:1px solid #eee;border-radius:12px;background:#f6f8fb;">
+      <h3 style="margin:0 0 8px 0;">Output Parameters</h3>
+
+      <div style="display:grid;grid-template-columns:1fr auto;row-gap:8px;column-gap:10px;">
+        <div>Noncentrality parameter &delta;</div><div id="deltaOut" style="font-weight:700;">—</div>
+        <div>Critical t</div><div id="tcritOut" style="font-weight:700;">—</div>
+        <div>Df</div><div id="dfOut" style="font-weight:700;">—</div>
+        <div>Sample size group 1 (N1)</div><div id="n1Out" style="font-weight:700;">—</div>
+        <div>Sample size group 2 (N2)</div><div id="n2Out" style="font-weight:700;">—</div>
+        <div>Total sample size</div><div id="nTotOut" style="font-weight:700;">—</div>
+        <div>Actual power</div><div id="powOut" style="font-weight:700;">—</div>
+      </div>
+    </div>
+
+  </div>
+
+  <hr style="margin:18px 0;">
+  <p style="font-size:0.95rem;color:#555;">
+    Power computed via numerical integration of the noncentral-t distribution (exact), then minimal integer N1 is found
+    using bracketing + bisection. N2 is rounded to keep N2/N1 close to the specified ratio.
+  </p>
+</section>
+
+<script>
+/*** -------- Normal helpers -------- ***/
+function normInv(p){
+  if(p<=0 || p>=1) return NaN;
+  const a1=-3.969683028665376e+01, a2= 2.209460984245205e+02,
+        a3=-2.759285104469687e+02, a4= 1.383577518672690e+02,
+        a5=-3.066479806614716e+01, a6= 2.506628277459239e+00;
+  const b1=-5.447609879822406e+01, b2= 1.615858368580409e+02,
+        b3=-1.556989798598866e+02, b4= 6.680131188771972e+01,
+        b5=-1.328068155288572e+01;
+  const c1=-7.784894002430293e-03, c2=-3.223964580411365e-01,
+        c3=-2.400758277161838e+00, c4=-2.549732539343734e+00,
+        c5= 4.374664141464968e+00, c6= 2.938163982698783e+00;
+  const d1= 7.784695709041462e-03, d2= 3.224671290700398e-01,
+        d3= 2.445134137142996e+00, d4= 3.754408661907416e+00;
+  const plow=0.02425, phigh=1-plow;
+  let q,r;
+  if(p<plow){
+    q=Math.sqrt(-2*Math.log(p));
+    return (((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6) /
+           ((((d1*q+d2)*q+d3)*q+d4)*q+1);
+  }
+  if(p>phigh){
+    q=Math.sqrt(-2*Math.log(1-p));
+    return -(((((c1*q+c2)*q+c3)*q+c4)*q+c5)*q+c6) /
+             ((((d1*q+d2)*q+d3)*q+d4)*q+1);
+  }
+  q=p-0.5; r=q*q;
+  return (((((a1*r+a2)*r+a3)*r+a4)*r+a5)*r+a6)*q /
+         (((((b1*r+b2)*r+b3)*r+b4)*r+b5)*r+1);
+}
+
+// High-accuracy erf (Numerical Recipes)
+function erf(x){
+  const sign = x >= 0 ? 1 : -1;
+  x = Math.abs(x);
+  const t = 1 / (1 + 0.5 * x);
+  const tau = t * Math.exp(
+    -x*x - 1.26551223 +
+    1.00002368*t +
+    0.37409196*t**2 +
+    0.09678418*t**3 -
+    0.18628806*t**4 +
+    0.27886807*t**5 -
+    1.13520398*t**6 +
+    1.48851587*t**7 -
+    0.82215223*t**8 +
+    0.17087277*t**9
+  );
+  return sign * (1 - tau);
+}
+function normCdf(x){
+  return 0.5 * (1 + erf(x / Math.SQRT2));
+}
+
+/*** -------- logGamma (Lanczos) -------- ***/
+function logGamma(z){
+  const g = 7;
+  const p = [
+    0.99999999999980993,
+    676.5203681218851,
+   -1259.1392167224028,
+    771.32342877765313,
+   -176.61502916214059,
+     12.507343278686905,
+     -0.13857109526572012,
+      0.000009984369578019572,
+      0.00000015056327351493116
+  ];
+  if(z < 0.5){
+    return Math.log(Math.PI) - Math.log(Math.sin(Math.PI*z)) - logGamma(1-z);
+  }
+  z -= 1;
+  let x = p[0];
+  for(let i=1;i<p.length;i++) x += p[i]/(z+i);
+  const t = z + g + 0.5;
+  return 0.5*Math.log(2*Math.PI) + (z+0.5)*Math.log(t) - t + Math.log(x);
+}
+
+/*** -------- adaptive Simpson integration -------- ***/
+function simpson(f,a,b){
+  const c=(a+b)/2;
+  return (b-a)/6*(f(a)+4*f(c)+f(b));
+}
+function adaptiveSimpson(f,a,b,eps,whole,depth){
+  const c=(a+b)/2;
+  const left=simpson(f,a,c);
+  const right=simpson(f,c,b);
+  if(depth<=0 || Math.abs(left+right-whole) < 15*eps){
+    return left+right + (left+right-whole)/15;
+  }
+  return adaptiveSimpson(f,a,c,eps/2,left,depth-1) +
+         adaptiveSimpson(f,c,b,eps/2,right,depth-1);
+}
+
+/*** -------- noncentral t CDF via gamma integral --------
+  T = (Z + δ)/sqrt(V/df), V~χ²_df
+  CDF(t) = E[ Φ( t*sqrt(V/df) − δ ) ]
+  With s = V/2 ~ Gamma(a=df/2, scale=1)
+--------------------------------------------------------- ***/
+function nctCdf(t, df, delta){
+  const a = df/2;
+  const logGa = logGamma(a);
+
+  function gammaPdf(s){
+    if(s<=0) return 0;
+    return Math.exp((a-1)*Math.log(s) - s - logGa);
+  }
+  function integrand(s){
+    const arg = t * Math.sqrt(2*s/df) - delta;
+    return normCdf(arg) * gammaPdf(s);
+  }
+
+  const upper = a + 12*Math.sqrt(a) + 10;
+  const whole = simpson(integrand, 0, upper);
+  return adaptiveSimpson(integrand, 0, upper, 1e-8, whole, 16);
+}
+
+/*** -------- central t quantile (Cornish–Fisher) -------- ***/
+function tInv(p, df){
+  const z = normInv(p);
+  const z2=z*z, z3=z*z2, z5=z3*z2, z7=z5*z2;
+  const g1=(z3+z)/(4*df);
+  const g2=(5*z5+16*z3+3*z)/(96*df*df);
+  const g3=(3*z7+19*z5+17*z3-15*z)/(384*df*df*df);
+  return z + g1 + g2 + g3;
+}
+
+/*** -------- two-sample t power (exact nct) --------
+  δ = d * sqrt( n1*n2/(n1+n2) ), df = n1+n2-2
+----------------------------------------------- ***/
+function twoSampleTPowerExact(n1, r, d, alpha, tails){
+  let n2 = Math.round(r*n1);
+  if(n2 < 1) n2 = 1;
+  const df = n1 + n2 - 2;
+  const delta = d * Math.sqrt((n1*n2)/(n1+n2));
+
+  let tcrit, power, direction;
+
+  if(tails==="two"){
+    tcrit = tInv(1-alpha/2, df);
+    power = nctCdf(-tcrit, df, delta) + (1 - nctCdf(tcrit, df, delta));
+    direction = "two-sided (± critical t)";
+  }else{
+    if(d < 0){
+      tcrit = tInv(alpha, df); // negative
+      power = nctCdf(tcrit, df, delta);
+      direction = "one-sided lower tail (d<0)";
+    }else{
+      tcrit = tInv(1-alpha, df);
+      power = 1 - nctCdf(tcrit, df, delta);
+      direction = "one-sided upper tail (d≥0)";
+    }
+  }
+  return {power, tcrit, df, delta, n2, direction};
+}
+
+/*** -------- solve N1 by bracket + bisection -------- ***/
+function solveTwoSampleTApriori(){
+  const tails = document.getElementById("tails").value;
+  const d = parseFloat(document.getElementById("d").value);
+  const alpha = parseFloat(document.getElementById("alpha").value);
+  const powTarget = parseFloat(document.getElementById("powTarget").value);
+  const r = parseFloat(document.getElementById("ratio").value);
+
+  const deltaOut = document.getElementById("deltaOut");
+  const tcritOut = document.getElementById("tcritOut");
+  const dfOut = document.getElementById("dfOut");
+  const n1Out = document.getElementById("n1Out");
+  const n2Out = document.getElementById("n2Out");
+  const nTotOut = document.getElementById("nTotOut");
+  const powOut = document.getElementById("powOut");
+  const dirNote = document.getElementById("dirNote");
+
+  if(!(alpha>0 && alpha<1) || !(powTarget>0 && powTarget<1) || isNaN(d) || d===0 || !(r>0)){
+    deltaOut.textContent = tcritOut.textContent = dfOut.textContent =
+      n1Out.textContent = n2Out.textContent = nTotOut.textContent = powOut.textContent = "—";
+    dirNote.textContent = "Please enter valid d (nonzero), 0<α<1, 0<power<1, and ratio r>0.";
+    return;
+  }
+
+  // normal-approx start for N1 using r as real ratio
+  const zA = normInv(1 - (tails==="two" ? alpha/2 : alpha));
+  const zP = normInv(powTarget);
+  let n1High = Math.ceil(((zA+zP)/Math.abs(d))**2 * (1+r)/r);
+  if(n1High < 2) n1High = 2;
+
+  let n1Low = 2;
+  let resHigh = twoSampleTPowerExact(n1High, r, d, alpha, tails);
+
+  while(resHigh.power < powTarget){
+    n1Low = n1High;
+    n1High = Math.ceil(n1High*1.5 + 10);
+    resHigh = twoSampleTPowerExact(n1High, r, d, alpha, tails);
+    if(n1High > 200000){
+      dirNote.textContent = "N too large; check inputs.";
+      return;
+    }
+  }
+
+  // bisection for minimal integer N1
+  while(n1Low + 1 < n1High){
+    const mid = Math.floor((n1Low+n1High)/2);
+    const resMid = twoSampleTPowerExact(mid, r, d, alpha, tails);
+    if(resMid.power >= powTarget) n1High = mid;
+    else n1Low = mid;
+  }
+
+  const res = twoSampleTPowerExact(n1High, r, d, alpha, tails);
+  const n1 = n1High, n2 = res.n2, nTot = n1+n2;
+
+  deltaOut.textContent = res.delta.toFixed(7);
+  tcritOut.textContent = (tails==="two" ? `± ${res.tcrit.toFixed(6)}` : res.tcrit.toFixed(7));
+  dfOut.textContent = res.df;
+  n1Out.textContent = n1;
+  n2Out.textContent = n2;
+  nTotOut.textContent = nTot;
+  powOut.textContent = res.power.toFixed(7);
+  dirNote.textContent = `Direction: ${res.direction}`;
+}
+</script>

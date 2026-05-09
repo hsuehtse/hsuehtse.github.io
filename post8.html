@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>助教點名系統 (雲端整合版)</title>
+    <style>
+        /* --- 基礎樣式 --- */
+        body { font-family: "Microsoft JhengHei", "Segoe UI", sans-serif; background-color: #f4f4f9; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
+        h2 { border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-top: 0; }
+        h3 { margin-top: 0; color: #555; }
+        
+        /* --- 區塊樣式 --- */
+        .section { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 25px; }
+        
+        /* --- 輸入框與按鈕 --- */
+        input, textarea, button { padding: 12px; border-radius: 6px; border: 1px solid #ddd; font-size: 16px; margin-bottom: 15px; width: 100%; box-sizing: border-box; transition: 0.2s; }
+        input:focus, textarea:focus { border-color: #007bff; outline: none; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+        
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #0056b3; transform: translateY(-1px); }
+        button:disabled { background-color: #ccc; cursor: not-allowed; transform: none; }
+        
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+        
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+
+        button.google { background-color: #ff9800; color: white; }
+        button.google:hover { background-color: #e68900; }
+
+        button.random { background-color: #6610f2; }
+        button.random:hover { background-color: #520dc2; }
+        
+        /* --- 統計儀表板 --- */
+        .stats-dashboard {
+            background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .stats-text { font-size: 1.2em; font-weight: bold; display: flex; justify-content: space-between; }
+        .progress-container { background: #cbd3da; border-radius: 10px; height: 12px; width: 100%; overflow: hidden; }
+        .progress-bar { background: #28a745; height: 100%; width: 100%; transition: width 0.3s ease; }
+
+        /* --- 點名卡片區塊 --- */
+        .attendance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
+        .student-card {
+            background-color: #fff; border: 2px solid #eee; padding: 15px 5px; text-align: center; 
+            cursor: pointer; border-radius: 8px; user-select: none; transition: all 0.2s; font-weight: 500;
+        }
+        
+        /* 出席狀態 - 綠色 */
+        .student-card.present { background-color: #d4edda; border-color: #28a745; color: #155724; }
+        .student-card.present::after { content: " ✔"; }
+        
+        /* 缺席狀態 - 紅色 */
+        .student-card.absent { background-color: #f8d7da; border-color: #dc3545; color: #721c24; opacity: 0.8; }
+        .student-card.absent::after { content: " ✘"; }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="section" id="setupSection">
+        <h2>1. 系統設定</h2>
+        
+        <h3>📋 學生名單</h3>
+        <p style="margin-top:0; font-size:0.9em; color:gray;">請輸入名字（一行一個）：</p>
+        <textarea id="studentListInput" rows="5" placeholder="王小明&#10;陳小美&#10;林大華"></textarea>
+        <button onclick="saveStudents()">💾 儲存名單</button>
+        <p id="studentCountInfo" style="color: gray; font-size: 0.9em; margin:0; margin-bottom: 20px;"></p>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+        <h3>☁️ 雲端設定 (Google Sheets)</h3>
+        <p style="margin-top:0; font-size:0.9em; color:gray;">已預填您的部屬網址：</p>
+        <input type="text" id="googleScriptUrl" 
+               value="https://script.google.com/macros/s/AKfycbwsxWVg6QGeOXc6_2ZiWx_fRn5SWPupXjSYkwUfHNSIjucB3ClGM5L-LgmNCNSXmDZ3Lg/exec">
+        <button class="secondary" onclick="saveGoogleUrl()">🔗 更新連結設定</button>
+    </div>
+
+    <div class="section" id="sessionSection">
+        <h2>2. 建立新點名</h2>
+        <label>日期：</label>
+        <input type="date" id="sessionDate">
+        <label>課程主題 / 標題：</label>
+        <input type="text" id="sessionTitle" placeholder="例如：Chapter 5 假設檢定習題課">
+        <button class="success" onclick="startRollCall()">🚀 開始點名</button>
+    </div>
+
+    <div class="section hidden" id="activeRollCallSection">
+        <h2 id="currentSessionTitle">點名中...</h2>
+
+        <div class="stats-dashboard">
+            <div class="stats-text">
+                <span id="statsNumbers">0 / 0</span>
+                <span id="statsPercent">0%</span>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="statsBar"></div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 10px; font-size: 0.9em; color: gray;">
+            點擊名字切換：<span style="color: #28a745; font-weight:bold;">出席</span> / <span style="color: #dc3545; font-weight:bold;">缺席</span>
+        </div>
+        
+        <div id="attendanceList" class="attendance-grid"></div>
+        
+        <div style="margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="google" onclick="uploadToGoogleSheet()" style="flex: 1 1 100%;">☁️ 上傳到 Google Sheets</button>
+            <button class="success" onclick="exportToCSV()" style="flex: 1;">📥 下載 CSV</button>
+            <button class="random" onclick="pickRandomStudent()" style="flex: 1;">🎲 隨機抽點</button>
+            <button class="secondary" onclick="cancelRollCall()" style="flex: 1;">↩ 返回</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 初始化設定 ---
+        document.getElementById('sessionDate').valueAsDate = new Date();
+
+        window.onload = function() {
+            // 載入學生名單
+            const savedList = localStorage.getItem('myStudentList');
+            if (savedList) {
+                document.getElementById('studentListInput').value = savedList;
+                updateCountInfo(savedList.split('\n').filter(n => n.trim() !== '').length);
+            }
+
+            // 載入 Google URL (如果有自行修改過，以 localStorage 為主，否則使用 HTML 中的預設值)
+            const savedUrl = localStorage.getItem('myGoogleUrl');
+            if (savedUrl) {
+                document.getElementById('googleScriptUrl').value = savedUrl;
+            }
+        };
+
+        // --- 名單管理 ---
+        function saveStudents() {
+            const rawText = document.getElementById('studentListInput').value;
+            const students = rawText.split('\n').map(s => s.trim()).filter(s => s !== '');
+            
+            if (students.length === 0) { alert("請至少輸入一個名字！"); return; }
+            
+            localStorage.setItem('myStudentList', rawText);
+            updateCountInfo(students.length);
+            alert(`✅ 名單已更新，共 ${students.length} 人。`);
+        }
+
+        function saveGoogleUrl() {
+            const url = document.getElementById('googleScriptUrl').value.trim();
+            if(!url) { alert("網址不能為空"); return; }
+            localStorage.setItem('myGoogleUrl', url);
+            alert("✅ Google API 網址已儲存！");
+        }
+
+        function updateCountInfo(count) {
+            document.getElementById('studentCountInfo').innerText = `目前名單內有 ${count} 位學生`;
+        }
+
+        // --- 點名核心邏輯 ---
+        let currentStudents = [];
+
+        function startRollCall() {
+            const rawText = localStorage.getItem('myStudentList'); // 優先讀取儲存的
+            // 如果還沒存過，嘗試讀取輸入框的
+            const inputText = document.getElementById('studentListInput').value;
+            
+            const sourceText = rawText || inputText;
+
+            if (!sourceText) { alert("請先設定名單！"); return; }
+            
+            const date = document.getElementById('sessionDate').value;
+            const title = document.getElementById('sessionTitle').value;
+            if (!date || !title) { alert("請輸入完整的日期與標題！"); return; }
+
+            currentStudents = sourceText.split('\n').map(s => s.trim()).filter(s => s !== '');
+            
+            // 介面切換
+            document.getElementById('setupSection').classList.add('hidden');
+            document.getElementById('sessionSection').classList.add('hidden');
+            document.getElementById('activeRollCallSection').classList.remove('hidden');
+            document.getElementById('currentSessionTitle').innerText = `${date} - ${title}`;
+
+            renderAttendanceGrid();
+            updateStats();
+        }
+
+        function renderAttendanceGrid() {
+            const container = document.getElementById('attendanceList');
+            container.innerHTML = '';
+
+            currentStudents.forEach((student) => {
+                const card = document.createElement('div');
+                card.className = 'student-card present'; // 預設出席
+                card.innerText = student;
+                card.dataset.status = 'present'; 
+                
+                card.onclick = function() {
+                    // 切換狀態
+                    if (this.dataset.status === 'present') {
+                        this.dataset.status = 'absent';
+                        this.className = 'student-card absent';
+                    } else {
+                        this.dataset.status = 'present';
+                        this.className = 'student-card present';
+                    }
+                    // 清除隨機抽點的樣式
+                    this.style.border = ''; 
+                    updateStats();
+                };
+                container.appendChild(card);
+            });
+        }
+
+        function updateStats() {
+            const total = currentStudents.length;
+            const presentCount = document.querySelectorAll('.student-card[data-status="present"]').length;
+            const percent = total === 0 ? 0 : Math.round((presentCount / total) * 100);
+
+            document.getElementById('statsNumbers').innerText = `出席: ${presentCount} / ${total} 人`;
+            document.getElementById('statsPercent').innerText = `${percent}%`;
+
+            const bar = document.getElementById('statsBar');
+            bar.style.width = `${percent}%`;
+            
+            // 變色邏輯
+            if(percent < 60) { bar.style.backgroundColor = '#dc3545'; } // 紅
+            else if(percent < 80) { bar.style.backgroundColor = '#ffc107'; } // 黃
+            else { bar.style.backgroundColor = '#28a745'; } // 綠
+        }
+
+        function cancelRollCall() {
+            document.getElementById('setupSection').classList.remove('hidden');
+            document.getElementById('sessionSection').classList.remove('hidden');
+            document.getElementById('activeRollCallSection').classList.add('hidden');
+        }
+
+        // --- 功能 A: 隨機抽點 ---
+        function pickRandomStudent() {
+            const presentCards = document.querySelectorAll('.student-card[data-status="present"]');
+            if (presentCards.length === 0) { alert("目前沒有出席的學生可以抽！"); return; }
+
+            const randomIndex = Math.floor(Math.random() * presentCards.length);
+            const winnerCard = presentCards[randomIndex];
+            
+            // 視覺重置與高亮
+            document.querySelectorAll('.student-card').forEach(c => c.style.border = '');
+            winnerCard.style.border = '4px solid #6610f2'; 
+            
+            winnerCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => { alert(`👉 命運選中了：【 ${winnerCard.innerText} 】`); }, 100);
+        }
+
+        // --- 功能 B: CSV 下載 ---
+        function exportToCSV() {
+            const date = document.getElementById('sessionDate').value;
+            const title = document.getElementById('sessionTitle').value;
+            const cards = document.querySelectorAll('.student-card');
+            
+            const presentCount = document.querySelectorAll('.student-card[data-status="present"]').length;
+            const total = cards.length;
+            const rate = Math.round((presentCount / total) * 100) + "%";
+
+            let csvContent = "\uFEFF"; // BOM
+            csvContent += `課程標題,${title}\n日期,${date}\n總人數,${total}\n出席人數,${presentCount}\n出席率,${rate}\n\n學生姓名,出席狀態\n`;
+
+            cards.forEach(card => {
+                const status = card.dataset.status === 'present' ? '出席' : '缺席';
+                csvContent += `${card.innerText},${status}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `點名_${date}_${title}.csv`;
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- 功能 C: 上傳 Google Sheets ---
+        function uploadToGoogleSheet() {
+            const scriptUrl = document.getElementById('googleScriptUrl').value.trim();
+            if (!scriptUrl) { alert("找不到 API 網址！請回設定頁確認。"); return; }
+
+            const date = document.getElementById('sessionDate').value;
+            const title = document.getElementById('sessionTitle').value;
+            const cards = document.querySelectorAll('.student-card');
+            
+            let records = [];
+            cards.forEach(card => {
+                records.push({
+                    name: card.innerText,
+                    status: card.dataset.status === 'present' ? '出席' : '缺席'
+                });
+            });
+
+            const payload = { date: date, title: title, records: records };
+            
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "⏳ 上傳中...";
+            btn.disabled = true;
+
+            fetch(scriptUrl, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                alert("✅ 資料已成功傳送至 Google Sheets！");
+                btn.innerText = originalText;
+                btn.disabled = false;
+                
+                // 確認是否結束
+                if(confirm("上傳完成！要結束這次點名嗎？")) { cancelRollCall(); }
+            }).catch(error => {
+                console.error('Error:', error);
+                alert("❌ 上傳失敗，請檢查網路連線或 API 網址是否正確。");
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>

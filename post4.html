@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>受密碼保護的頁面</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      /* 禁止選取文字 */
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+    #protected {
+      display: none;
+      margin-top: 20px;
+    }
+  </style>
+  <script>
+    // 密碼檢查邏輯
+    function checkPassword() {
+      const input = document.getElementById("password").value.trim();
+      const correct = "ntu123";  // ←← 修改這裡的密碼
+
+      if (input === correct) {
+        document.getElementById("protected").style.display = "block";
+        document.getElementById("login").style.display = "none";
+      } else {
+        alert("密碼錯誤，請再試一次！");
+        document.getElementById("password").value = "";
+      }
+    }
+
+    // 加入防右鍵、防複製
+    document.addEventListener('DOMContentLoaded', function () {
+      // 禁止右鍵
+      document.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+      });
+
+      // 禁止複製
+      document.addEventListener('copy', function (e) {
+        e.preventDefault();
+      });
+    });
+  </script>
+</head>
+<body>
+  <div id="login">
+    <h2>此頁面內容受密碼保護</h2>
+    <p>請輸入密碼以繼續閱讀：</p>
+    <input type="password" id="password">
+    <button onclick="checkPassword()">確認</button>
+  </div>
+
+  <div id="protected">
+    <h2>這是受保護的內容</h2>
+    <ul>
+        <li><a href="files/Instructions_on_installing_excel_2025.pdf" target="_blank">Instructions on Installing Excel and Analysis ToolPak (PDF)</a></li>
+        <li><a href="files/Lab1.Intro_to_Excel_handout_2025.pdf" target="_blank">First Lab: Introduction to Microsoft Excel (PDF)</a></li>
+        <li><a href="files/faithful data.xlsx" target="_blank">faithful data (Excel)</a></li>
+        <li><a href="files/The uses & misuses of statistics in life.2025.pdf" target="_blank">The uses & misuses of statistics in life.2025 (PDF)</a></li>
+        <li><a href="files/Syllabus.Psy Stat.Fall2025.9-1-2025.pdf" target="_blank">Syllabus.Psy Stat.Fall2025.9-1-2025 (PDF)</a></li>
+        <li><a href="files/lt_1.student.Ch1&2.Howell2017.9-1-2025.pdf" target="_blank">lt_1.student.Ch1&2.Howell2017.9-1-2025 (PDF)</a></li>
+        <li><a href="files/Lab4.ogive_and_boxplot.xlsx" target="_blank">Lab4.ogive_and_boxplot (Excel)</a></li>
+        <li><a href="files/Lab4.boxplot.pdf" target="_blank">Lab4.boxplot (PDF)</a></li>
+        
+    </ul>
+  </div>
+</body>
+</html>
+
